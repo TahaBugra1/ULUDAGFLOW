@@ -1,13 +1,14 @@
 /**
  * Gerçek GIS Verilerine Dayalı Şebeke Haritası
  * Balkan Mahallesi - İçmesuyu, Atıksu, Yağmursuyu
+ * + Şikayet Noktaları Görselleştirmesi
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MapPin, AlertTriangle, Droplets, Activity, 
   Filter, Eye, EyeOff, RefreshCw, Info,
-  Layers, TrendingUp, Gauge
+  Layers, TrendingUp, Gauge, X, MessageCircle
 } from 'lucide-react';
 import { realNetworkService, Pipe, NetworkNode, RiskZone } from '../services/realNetworkService';
 import { 
@@ -23,6 +24,7 @@ interface RealNetworkMapProps {
 
 type NetworkType = 'all' | 'icmesuyu' | 'atiksu' | 'yagmursuyu';
 type ViewMode = 'risk' | 'material' | 'diameter';
+type ComplaintFilter = 'all' | 'PATLAK' | 'BASINC_DUSUK' | 'KALITE' | 'KESINTI' | 'SIZINTI' | 'DIGER';
 
 export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps) {
   const [selectedType, setSelectedType] = useState<NetworkType>('all');
@@ -32,6 +34,15 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
   const [selectedPipe, setSelectedPipe] = useState<Pipe | null>(null);
   const [prediction, setPrediction] = useState<RealPrediction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Şikayet state'leri
+  const [showComplaints, setShowComplaints] = useState(true);
+  const [complaintFilter, setComplaintFilter] = useState<ComplaintFilter>('all');
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  
+  // Zoom state - haritayı büyütme
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
   // Dashboard verileri
   const dashboard = useMemo(() => getRealNetworkDashboard(), []);
@@ -93,6 +104,128 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
       default: return '#6b7280';
     }
   };
+
+  // Şikayet kategorisi renkleri
+  const getComplaintColor = (category: string): string => {
+    switch (category) {
+      case 'PATLAK': return '#ef4444';     // Kırmızı
+      case 'BASINC_DUSUK': return '#f97316'; // Turuncu
+      case 'KALITE': return '#8b5cf6';      // Mor
+      case 'KESINTI': return '#3b82f6';     // Mavi
+      case 'SIZINTI': return '#06b6d4';     // Cyan
+      default: return '#6b7280';             // Gri
+    }
+  };
+
+  const getComplaintLabel = (category: string): string => {
+    switch (category) {
+      case 'PATLAK': return 'Patlak';
+      case 'BASINC_DUSUK': return 'Basınç Düşük';
+      case 'KALITE': return 'Su Kalitesi';
+      case 'KESINTI': return 'Kesinti';
+      case 'SIZINTI': return 'Sızıntı';
+      default: return 'Diğer';
+    }
+  };
+
+  const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+      case 'ACIL': return '#dc2626';
+      case 'YUKSEK': return '#f97316';
+      case 'NORMAL': return '#eab308';
+      case 'DUSUK': return '#22c55e';
+      default: return '#6b7280';
+    }
+  };
+
+  // Borulara yakın mock şikayetler oluştur (risk yüksek borularda daha yoğun)
+  const generatedComplaints = useMemo(() => {
+    const mockComplaints: Complaint[] = [];
+    const categories: Array<{ cat: string; priority: string; texts: string[] }> = [
+      { cat: 'PATLAK', priority: 'ACIL', texts: ['Boru patladı, su her yere akıyor!', 'Büyük su kaçağı var', 'Yolda su birikintisi oluştu'] },
+      { cat: 'BASINC_DUSUK', priority: 'YUKSEK', texts: ['Su basıncı çok düşük', '3. kata su çıkmıyor', 'Duşta su damla damla geliyor'] },
+      { cat: 'KALITE', priority: 'NORMAL', texts: ['Su sarı renkte geliyor', 'Suda kötü koku var', 'Su bulanık akıyor'] },
+      { cat: 'KESINTI', priority: 'YUKSEK', texts: ['2 gündür su yok', 'Planlı kesinti uzadı', 'Mahallemizde su kesildi'] },
+      { cat: 'SIZINTI', priority: 'NORMAL', texts: ['Kaldırımda sızıntı var', 'Vanadan su sızıyor', 'Bağlantı noktasında kaçak'] },
+    ];
+    
+    // Yüksek riskli borulara daha fazla şikayet ekle
+    const highRiskPipes = pipes.filter(p => p.risk_score >= 40).slice(0, 30);
+    const mediumRiskPipes = pipes.filter(p => p.risk_score >= 25 && p.risk_score < 40).slice(0, 15);
+    const randomPipes = pipes.filter(p => p.risk_score < 25).slice(0, 8);
+    
+    const allTargetPipes = [...highRiskPipes, ...mediumRiskPipes, ...randomPipes];
+    
+    allTargetPipes.forEach((pipe, idx) => {
+      if (!pipe.coordinates || pipe.coordinates.length < 1) return;
+      
+      // Borunun ortasına veya rastgele noktasına şikayet ekle
+      const coordIdx = Math.floor(Math.random() * pipe.coordinates.length);
+      const coord = pipe.coordinates[coordIdx];
+      
+      // Küçük rastgele sapma ekle (doğallık için)
+      const offsetLat = (Math.random() - 0.5) * 0.0008;
+      const offsetLng = (Math.random() - 0.5) * 0.0008;
+      
+      // Risk yüksekse daha ciddi kategori seç
+      let catInfo;
+      if (pipe.risk_score >= 50) {
+        catInfo = categories[Math.floor(Math.random() * 2)]; // PATLAK veya BASINC
+      } else if (pipe.risk_score >= 30) {
+        catInfo = categories[Math.floor(Math.random() * 4)];
+      } else {
+        catInfo = categories[Math.floor(Math.random() * categories.length)];
+      }
+      
+      mockComplaints.push({
+        id: `mock-${idx}`,
+        text: catInfo.texts[Math.floor(Math.random() * catInfo.texts.length)],
+        category: catInfo.cat as any,
+        priority: catInfo.priority as any,
+        status: Math.random() > 0.3 ? 'BEKLEMEDE' : 'ISLEMDE',
+        district: pipe.type === 'icmesuyu' ? 'Nilüfer' : pipe.type === 'atiksu' ? 'Osmangazi' : 'Yıldırım',
+        address: `Balkan Mah. ${Math.floor(Math.random() * 50) + 1}. Sokak`,
+        citizenName: ['Ahmet Yılmaz', 'Fatma Demir', 'Mehmet Kaya', 'Ayşe Çelik', 'Ali Öztürk'][Math.floor(Math.random() * 5)],
+        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        location: { lat: coord[0] + offsetLat, lng: coord[1] + offsetLng }
+      });
+    });
+    
+    // Birkaç rastgele konumda şikayet (merkez etrafında)
+    for (let i = 0; i < 5; i++) {
+      const catInfo = categories[Math.floor(Math.random() * categories.length)];
+      mockComplaints.push({
+        id: `random-${i}`,
+        text: catInfo.texts[Math.floor(Math.random() * catInfo.texts.length)],
+        category: catInfo.cat as any,
+        priority: catInfo.priority as any,
+        status: 'BEKLEMEDE',
+        district: ['Nilüfer', 'Osmangazi', 'Yıldırım'][Math.floor(Math.random() * 3)],
+        address: `Merkez Mah. ${Math.floor(Math.random() * 100) + 1}. Cadde`,
+        citizenName: ['Can Yıldız', 'Zeynep Arslan', 'Burak Şahin'][Math.floor(Math.random() * 3)],
+        createdAt: new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000).toISOString(),
+        location: { 
+          lat: dashboard.center.lat + (Math.random() - 0.5) * 0.02, 
+          lng: dashboard.center.lng + (Math.random() - 0.5) * 0.02 
+        }
+      });
+    }
+    
+    return mockComplaints;
+  }, [pipes, dashboard.center]);
+
+  // Gerçek şikayetler varsa onları, yoksa mock şikayetleri kullan
+  const activeComplaints = useMemo(() => {
+    const real = complaints?.filter(c => c.location) || [];
+    return real.length > 0 ? real : generatedComplaints;
+  }, [complaints, generatedComplaints]);
+
+  // Filtrelenmiş şikayetler
+  const filteredComplaints = useMemo(() => {
+    if (!showComplaints) return [];
+    if (complaintFilter === 'all') return activeComplaints;
+    return activeComplaints.filter(c => c.category === complaintFilter);
+  }, [activeComplaints, showComplaints, complaintFilter]);
 
   const getTypeLabel = (type: string): string => {
     switch (type) {
@@ -190,6 +323,47 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
             <AlertTriangle className="w-4 h-4" />
             Risk Bölgeleri
           </button>
+
+          {/* Şikayet Toggle */}
+          <button
+            onClick={() => setShowComplaints(!showComplaints)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              showComplaints ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Şikayetler ({filteredComplaints.length})
+          </button>
+
+          {/* Şikayet Filtresi */}
+          {showComplaints && (
+            <select
+              value={complaintFilter}
+              onChange={(e) => setComplaintFilter(e.target.value as ComplaintFilter)}
+              className="text-sm border border-orange-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-orange-500 bg-orange-50"
+            >
+              <option value="all">Tüm Şikayetler</option>
+              <option value="PATLAK">🔴 Patlak</option>
+              <option value="BASINC_DUSUK">🟠 Basınç Düşük</option>
+              <option value="KALITE">🟣 Su Kalitesi</option>
+              <option value="KESINTI">🔵 Kesinti</option>
+              <option value="SIZINTI">🩵 Sızıntı</option>
+              <option value="DIGER">⚪ Diğer</option>
+            </select>
+          )}
+
+          {/* Zoom Kontrolü */}
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))}
+              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+            >−</button>
+            <span className="text-sm text-gray-600 px-2">%{Math.round(zoomLevel * 100)}</span>
+            <button
+              onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))}
+              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+            >+</button>
+          </div>
         </div>
       </div>
 
@@ -197,11 +371,14 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
         
         {/* Harita Alanı (SVG) */}
-        <div className="lg:col-span-2 p-4 bg-gray-100 min-h-[400px] relative">
+        <div className="lg:col-span-2 p-4 bg-gray-100 min-h-[400px] relative overflow-hidden">
           <svg 
             viewBox="0 0 800 600" 
-            className="w-full h-full"
-            style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}
+            className="w-full h-full cursor-grab"
+            style={{ 
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+              transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`
+            }}
           >
             {/* Grid */}
             <defs>
@@ -234,9 +411,44 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
                   strokeWidth={pipe.risk_score >= 50 ? 3 : 2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="cursor-pointer hover:stroke-[4] transition-all"
+                  className="cursor-pointer transition-all"
                   onClick={() => setSelectedPipe(pipe)}
                   opacity={selectedPipe && selectedPipe.id !== pipe.id ? 0.3 : 1}
+                  style={{ 
+                    // Zoom seviyesine göre tıklama alanı (görünmez stroke)
+                    pointerEvents: 'stroke'
+                  }}
+                />
+              );
+            })}
+
+            {/* Görünmez tıklama alanı - zoom'a göre büyüyen */}
+            {pipes.slice(0, 200).map((pipe, idx) => {
+              if (!pipe.coordinates || pipe.coordinates.length < 2) return null;
+              
+              const bounds = dashboard.center;
+              const scale = 20000;
+              
+              const points = pipe.coordinates.map(coord => {
+                const x = 400 + (coord[1] - bounds.lng) * scale;
+                const y = 300 - (coord[0] - bounds.lat) * scale;
+                return `${x},${y}`;
+              }).join(' ');
+              
+              // Zoom arttıkça tıklama alanı büyüsün
+              const clickWidth = Math.max(8, 20 * zoomLevel);
+              
+              return (
+                <polyline
+                  key={`click-${pipe.id}`}
+                  points={points}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={clickWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedPipe(pipe)}
                 />
               );
             })}
@@ -295,12 +507,132 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
               );
             })}
 
+            {/* Şikayet Noktaları */}
+            {showComplaints && filteredComplaints.map((complaint) => {
+              if (!complaint.location) return null;
+              
+              const bounds = dashboard.center;
+              const scale = 20000;
+              const x = 400 + (complaint.location.lng - bounds.lng) * scale;
+              const y = 300 - (complaint.location.lat - bounds.lat) * scale;
+              
+              // Ekran dışındaysa gösterme
+              if (x < -50 || x > 850 || y < -50 || y > 650) return null;
+              
+              const isSelected = selectedComplaint?.id === complaint.id;
+              const color = getComplaintColor(complaint.category);
+              const size = isSelected ? 12 : 8;
+              
+              return (
+                <g 
+                  key={`complaint-${complaint.id}`}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComplaint(isSelected ? null : complaint)}
+                >
+                  {/* Pulse animasyonu (seçiliyse) */}
+                  {isSelected && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={20}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={2}
+                      opacity={0.5}
+                      className="animate-ping"
+                    />
+                  )}
+                  {/* Ana nokta */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={size}
+                    fill={color}
+                    stroke="white"
+                    strokeWidth={2}
+                    className="transition-all duration-200"
+                  />
+                  {/* İkon (önceliğe göre) */}
+                  {complaint.priority === 'ACIL' && (
+                    <text
+                      x={x}
+                      y={y + 3}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fill="white"
+                      fontWeight="bold"
+                    >!</text>
+                  )}
+                  {/* Hover tooltip */}
+                  <title>{`${getComplaintLabel(complaint.category)}: ${complaint.text?.slice(0, 50)}...`}</title>
+                </g>
+              );
+            })}
+
             {/* Merkez işareti */}
             <circle cx={400} cy={300} r={6} fill="#1e40af" stroke="white" strokeWidth={2} />
             <text x={400} y={320} textAnchor="middle" fontSize="10" fill="#1e40af">
               Merkez
             </text>
           </svg>
+
+          {/* Seçili Şikayet Popup */}
+          {selectedComplaint && (
+            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-xl p-4 max-w-xs z-10 border-l-4"
+              style={{ borderColor: getComplaintColor(selectedComplaint.category) }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: getComplaintColor(selectedComplaint.category) }}
+                  />
+                  <span className="font-medium text-sm">
+                    {getComplaintLabel(selectedComplaint.category)}
+                  </span>
+                  <span 
+                    className="text-xs px-1.5 py-0.5 rounded"
+                    style={{ 
+                      backgroundColor: getPriorityColor(selectedComplaint.priority) + '20',
+                      color: getPriorityColor(selectedComplaint.priority)
+                    }}
+                  >
+                    {selectedComplaint.priority}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setSelectedComplaint(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2 line-clamp-3">
+                {selectedComplaint.text}
+              </p>
+              <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+                {selectedComplaint.district && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {selectedComplaint.district} - {selectedComplaint.address || 'Adres belirtilmemiş'}
+                  </div>
+                )}
+                {selectedComplaint.citizenName && (
+                  <div>👤 {selectedComplaint.citizenName}</div>
+                )}
+                {selectedComplaint.createdAt && (
+                  <div>📅 {new Date(selectedComplaint.createdAt).toLocaleDateString('tr-TR')}</div>
+                )}
+                <div className={`font-medium ${
+                  selectedComplaint.status === 'BEKLEMEDE' ? 'text-yellow-600' :
+                  selectedComplaint.status === 'ISLEMDE' ? 'text-blue-600' :
+                  selectedComplaint.status === 'COZULDU' ? 'text-green-600' : 'text-gray-600'
+                }`}>
+                  Durum: {selectedComplaint.status}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Lejand */}
           <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 text-xs">
@@ -334,6 +666,33 @@ export default function RealNetworkMap({ complaints = [] }: RealNetworkMapProps)
               </div>
             )}
           </div>
+
+          {/* Şikayet Lejandı */}
+          {showComplaints && (
+            <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 text-xs">
+              <div className="font-medium mb-2">Şikayet Türleri</div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-500"></span> Patlak
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-orange-500"></span> Basınç Düşük
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-purple-500"></span> Su Kalitesi
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-blue-500"></span> Kesinti
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-cyan-500"></span> Sızıntı
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-200 text-gray-500">
+                Toplam: {filteredComplaints.length} şikayet
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sağ Panel */}

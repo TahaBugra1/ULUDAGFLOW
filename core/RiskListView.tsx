@@ -12,7 +12,7 @@
  * - Boru kartı: Detaylı bilgi popup
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,6 +23,7 @@ import type {
   ExpectedFailureType 
 } from './types';
 import { RiskAnalysisBlock, RiskAnalysisData } from './TicketPage';
+import { generateTechnicalReport, markdownToHtml } from '../services/openaiService';
 
 // ============================================
 // MOCK DATA - Gerçek projede API'den gelecek
@@ -297,6 +298,10 @@ interface PipeCardProps {
 }
 
 const PipeCard: React.FC<PipeCardProps> = ({ pipe, onClose }) => {
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportContent, setReportContent] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  
   const action = getRecommendedAction(pipe);
   const urgencyColors = {
     kritik: { bg: '#DC262620', border: '#DC2626', text: '#DC2626' },
@@ -304,6 +309,136 @@ const PipeCard: React.FC<PipeCardProps> = ({ pipe, onClose }) => {
     planlı: { bg: '#6B728020', border: '#6B7280', text: '#9CA3AF' },
   };
   const urgencyStyle = urgencyColors[action.urgency];
+  
+  // Rapor üretme fonksiyonu
+  const handleGenerateReport = useCallback(async () => {
+    setIsGeneratingReport(true);
+    try {
+      const report = await generateTechnicalReport({ pipe });
+      setReportContent(report);
+      setShowReport(true);
+    } catch (error) {
+      console.error('Rapor üretme hatası:', error);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }, [pipe]);
+  
+  // PDF indirme fonksiyonu
+  const handleDownloadPDF = useCallback(() => {
+    if (!reportContent) return;
+    
+    const html = markdownToHtml(reportContent);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    // Yeni pencerede aç (print için)
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+    
+    // Alternatif: Direkt HTML olarak indir
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Teknik_Rapor_${pipe.pipe_id}_${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [reportContent, pipe.pipe_id]);
+  
+  // Rapor görünümü
+  if (showReport && reportContent) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[2000]" onClick={() => setShowReport(false)}>
+        <div 
+          className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Rapor Header */}
+          <div className="px-6 py-4 bg-slate-800 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white">📋 Teknik İnceleme Raporu</h3>
+              <p className="text-sm text-slate-300">{pipe.pipe_id} • {pipe.district}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadPDF}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition flex items-center gap-2"
+              >
+                <span>📥</span> PDF İndir
+              </button>
+              <button
+                onClick={() => setShowReport(false)}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg transition"
+              >
+                ✕ Kapat
+              </button>
+            </div>
+          </div>
+          
+          {/* Rapor İçeriği */}
+          <div className="flex-1 overflow-auto p-6 prose prose-slate max-w-none">
+            <div 
+              className="markdown-content"
+              style={{ 
+                fontFamily: "'Segoe UI', Arial, sans-serif",
+                lineHeight: 1.6,
+                color: '#1a202c'
+              }}
+            >
+              {reportContent.split('\n').map((line, i) => {
+                if (line.startsWith('# ')) {
+                  return <h1 key={i} className="text-2xl font-bold text-slate-800 border-b-2 border-blue-600 pb-2 mt-6 mb-4">{line.slice(2)}</h1>;
+                }
+                if (line.startsWith('## ')) {
+                  return <h2 key={i} className="text-xl font-semibold text-slate-700 border-b border-slate-200 pb-2 mt-5 mb-3">{line.slice(3)}</h2>;
+                }
+                if (line.startsWith('### ')) {
+                  return <h3 key={i} className="text-lg font-medium text-slate-600 mt-4 mb-2">{line.slice(4)}</h3>;
+                }
+                if (line.startsWith('- ')) {
+                  return <li key={i} className="ml-4 text-slate-700">{line.slice(2)}</li>;
+                }
+                if (line.startsWith('> ')) {
+                  return <blockquote key={i} className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 my-2 text-slate-600 italic">{line.slice(2)}</blockquote>;
+                }
+                if (line.startsWith('|')) {
+                  // Tablo satırı - basit gösterim
+                  const cells = line.split('|').filter(c => c.trim() && !/^[-:]+$/.test(c.trim()));
+                  if (cells.length > 0 && !/^[-:]+$/.test(cells[0].trim())) {
+                    return (
+                      <div key={i} className="flex gap-2 py-1 border-b border-slate-100 text-sm">
+                        {cells.map((cell, j) => (
+                          <span key={j} className="flex-1 text-slate-600">{cell.trim()}</span>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                }
+                if (line.startsWith('---')) {
+                  return <hr key={i} className="my-4 border-slate-200" />;
+                }
+                if (line.startsWith('**') && line.endsWith('**')) {
+                  return <p key={i} className="font-semibold text-slate-800 my-2">{line.slice(2, -2)}</p>;
+                }
+                if (line.trim() === '') {
+                  return <br key={i} />;
+                }
+                // Bold metin içeren satırlar
+                const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                return <p key={i} className="text-slate-700 my-1" dangerouslySetInnerHTML={{ __html: formattedLine }} />;
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]" onClick={onClose}>
@@ -320,14 +455,35 @@ const PipeCard: React.FC<PipeCardProps> = ({ pipe, onClose }) => {
             <h3 className="text-lg font-bold text-white">{pipe.pipe_id}</h3>
             <p className="text-sm text-slate-300">{pipe.dma_id} • {pipe.district}</p>
           </div>
-          <div className="text-right">
-            <div 
-              className="text-3xl font-bold"
-              style={{ color: getRiskColor(pipe.risk_band) }}
+          <div className="flex items-center gap-4">
+            {/* Rapor Butonu */}
+            <button
+              onClick={handleGenerateReport}
+              disabled={isGeneratingReport}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 text-white text-sm rounded-lg transition flex items-center gap-2"
+              title="Detaylı Teknik Rapor Oluştur"
             >
-              {(pipe.risk_score * 100).toFixed(0)}
+              {isGeneratingReport ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  <span className="hidden sm:inline">Hazırlanıyor...</span>
+                </>
+              ) : (
+                <>
+                  <span>📋</span>
+                  <span className="hidden sm:inline">Teknik Rapor</span>
+                </>
+              )}
+            </button>
+            <div className="text-right">
+              <div 
+                className="text-3xl font-bold"
+                style={{ color: getRiskColor(pipe.risk_band) }}
+              >
+                {(pipe.risk_score * 100).toFixed(0)}
+              </div>
+              <div className="text-xs text-slate-400">Risk Skoru</div>
             </div>
-            <div className="text-xs text-slate-400">Risk Skoru</div>
           </div>
         </div>
         

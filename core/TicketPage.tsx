@@ -27,46 +27,100 @@ import type {
 // MOCK DATA - Gerçek projede API'den gelecek
 // ============================================
 
-const MOCK_TICKET: Ticket = {
-  ticket_id: 'TKT-2024-001542',
-  created_at: '2024-12-10T14:32:00',
-  issue_type: 'dusuk_basinc',
-  description: 'Sabahları duş alırken su basıncı çok düşük, 3 gündür böyle.',
-  location: {
-    lat: 40.2120,
-    lng: 28.9500,
-    neighborhood: 'Beşevler Mahallesi',
-    district: 'Nilüfer',
-    dma_id: 'DMA-NIL-03',
-  },
-  status: 'sahada',
-  assigned_unit: 'Nilüfer Saha Ekibi 2',
-  eta_hours: 4,
+// Her tipten 5'er şikayet örneği
+const TICKET_TEMPLATES: Record<IssueType, Array<{description: string; neighborhood: string; district: string; status: TicketStatus}>> = {
+  'su_kesintisi': [
+    { description: 'Sabah 6\'dan beri su yok, işe gidemedim.', neighborhood: 'Beşevler Mahallesi', district: 'Nilüfer', status: 'sahada' },
+    { description: '2 gündür su gelmiyor, çocuklar okula hazırlanamıyor.', neighborhood: 'Görükle Merkez', district: 'Nilüfer', status: 'atanmis' },
+    { description: 'Akşam 8\'den beri kesik, ne zaman gelecek?', neighborhood: 'Demirtaş Dumlupınar', district: 'Osmangazi', status: 'alindi' },
+    { description: 'Hastamız var evde, su şart lütfen acil.', neighborhood: 'Çekirge Mahallesi', district: 'Osmangazi', status: 'cozuluyor' },
+    { description: 'Tüm apartman susuz, 15 daire etkilendi.', neighborhood: 'Kükürtlü Mahallesi', district: 'Yıldırım', status: 'sahada' },
+  ],
+  'dusuk_basinc': [
+    { description: 'Sabahları duş alırken su basıncı çok düşük, 3 gündür böyle.', neighborhood: 'Beşevler Mahallesi', district: 'Nilüfer', status: 'sahada' },
+    { description: '5. katta oturuyorum, su damla damla geliyor.', neighborhood: 'Fethiye Mahallesi', district: 'Nilüfer', status: 'atanmis' },
+    { description: 'Kombi çalışmıyor basınç düşük diye, sıcak su alamıyoruz.', neighborhood: 'Altıparmak', district: 'Osmangazi', status: 'cozuluyor' },
+    { description: 'Çamaşır makinesi dolmuyor, basınç çok az.', neighborhood: 'Yiğitler Mahallesi', district: 'Osmangazi', status: 'alindi' },
+    { description: 'Bahçe sulayamıyorum, hortum işe yaramıyor.', neighborhood: 'Esentepe Mahallesi', district: 'Nilüfer', status: 'sahada' },
+  ],
+  'su_kalitesi': [
+    { description: 'Su sarı renkte geliyor, içilecek gibi değil.', neighborhood: 'Mudanya Merkez', district: 'Mudanya', status: 'sahada' },
+    { description: 'Suda kireç çok fazla, armatürler beyazladı.', neighborhood: 'Görükle Merkez', district: 'Nilüfer', status: 'atanmis' },
+    { description: 'Çeşmeden pas kokusu geliyor, endişeliyiz.', neighborhood: 'Demirtaş Organize', district: 'Osmangazi', status: 'alindi' },
+    { description: 'Bardağa koyunca dibe tortu çöküyor.', neighborhood: 'Kestel Merkez', district: 'Kestel', status: 'cozuluyor' },
+    { description: 'Bebek maması yapamıyoruz, su bulanık.', neighborhood: 'Çekirge Mahallesi', district: 'Osmangazi', status: 'sahada' },
+  ],
+  'diger': [
+    { description: 'Sayaç yanlış ölçüyor, fatura çok yüksek geldi.', neighborhood: 'Beşevler Mahallesi', district: 'Nilüfer', status: 'atanmis' },
+    { description: 'Sokakta su borusu patlamış, yol su içinde.', neighborhood: 'İhsaniye Mahallesi', district: 'Nilüfer', status: 'sahada' },
+    { description: 'Vana kapağı kırık, kapatamıyoruz.', neighborhood: 'Yıldırım Merkez', district: 'Yıldırım', status: 'alindi' },
+    { description: 'Yeni taşındık, abone işlemi için bilgi lazım.', neighborhood: 'Görükle Üniversite', district: 'Nilüfer', status: 'cozuluyor' },
+    { description: 'Fatura adresim yanlış, düzeltilmeli.', neighborhood: 'Altıparmak', district: 'Osmangazi', status: 'atanmis' },
+  ],
 };
 
+// Rastgele şikayet seç
+function getRandomTicket(): Ticket {
+  const types: IssueType[] = ['su_kesintisi', 'dusuk_basinc', 'su_kalitesi', 'diger'];
+  const randomType = types[Math.floor(Math.random() * types.length)];
+  const templates = TICKET_TEMPLATES[randomType];
+  const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+  
+  // Rastgele tarih (son 7 gün içinde)
+  const daysAgo = Math.floor(Math.random() * 7);
+  const hoursAgo = Math.floor(Math.random() * 24);
+  const createdAt = new Date();
+  createdAt.setDate(createdAt.getDate() - daysAgo);
+  createdAt.setHours(createdAt.getHours() - hoursAgo);
+  
+  // Rastgele ticket ID
+  const ticketNum = Math.floor(Math.random() * 9000) + 1000;
+  
+  return {
+    ticket_id: `TKT-2024-00${ticketNum}`,
+    created_at: createdAt.toISOString(),
+    issue_type: randomType,
+    description: randomTemplate.description,
+    location: {
+      lat: 40.19 + Math.random() * 0.05,
+      lng: 28.85 + Math.random() * 0.1,
+      neighborhood: randomTemplate.neighborhood,
+      district: randomTemplate.district,
+      dma_id: `DMA-${randomTemplate.district.substring(0, 3).toUpperCase()}-0${Math.floor(Math.random() * 9) + 1}`,
+    },
+    status: randomTemplate.status,
+    assigned_unit: `${randomTemplate.district} Saha Ekibi ${Math.floor(Math.random() * 5) + 1}`,
+    eta_hours: Math.floor(Math.random() * 8) + 1,
+  };
+}
+
+// Her sayfa yüklemesinde farklı şikayet
+const MOCK_TICKET: Ticket = getRandomTicket();
+
+// Mahalle bilgisi ticket'a göre dinamik
 const MOCK_NEIGHBORHOOD: NeighborhoodMetrics = {
-  neighborhood: 'Beşevler Mahallesi',
-  district: 'Nilüfer',
-  dma_id: 'DMA-NIL-03',
-  outage_count_30d: 3,
-  avg_outage_duration_30d_hours: 2.4,
-  bursts_12m: 7,
-  bursts_30d: 1,
-  failure_count_12m: 9,
-  risk_band_current: 'medium',
-  performance_vs_city: 'benzer',
+  neighborhood: MOCK_TICKET.location.neighborhood,
+  district: MOCK_TICKET.location.district,
+  dma_id: MOCK_TICKET.location.dma_id,
+  outage_count_30d: Math.floor(Math.random() * 5) + 1,
+  avg_outage_duration_30d_hours: Math.round((Math.random() * 4 + 1) * 10) / 10,
+  bursts_12m: Math.floor(Math.random() * 10) + 2,
+  bursts_30d: Math.floor(Math.random() * 3),
+  failure_count_12m: Math.floor(Math.random() * 12) + 3,
+  risk_band_current: (['low', 'medium', 'high'] as const)[Math.floor(Math.random() * 3)],
+  performance_vs_city: (['daha_iyi', 'benzer', 'daha_kotu'] as const)[Math.floor(Math.random() * 3)],
   // Şehir ortalamaları
   city_avg_outage_count_30d: 2.8,
   city_avg_outage_duration_30d_hours: 3.1,
   city_avg_bursts_12m: 5.2,
   // Risk motoru detayları - gerçekçi ve doğrudan
-  risk_summary: 'Bu DMA\'da son 12 ayda 9 patlak oldu. MNF halen yüksek (%18). 35+ yaş 2 FONT boru var.',
-  risk_action: '30 gün içinde saha kontrolü önerilir.',
-  risk_factors: ['9 patlak/12 ay', 'MNF %18', '2 FONT boru (35+ yaş)'],
-  risk_trend: 'worsening', // yükselme eğiliminde
+  risk_summary: `Bu DMA'da son 12 ayda ${Math.floor(Math.random() * 10) + 3} patlak oldu. MNF halen ${Math.random() > 0.5 ? 'yüksek' : 'orta'} (%${Math.floor(Math.random() * 15) + 10}).`,
+  risk_action: Math.random() > 0.5 ? '30 gün içinde saha kontrolü önerilir.' : '15 gün içinde acil müdahale gerekli.',
+  risk_factors: [`${Math.floor(Math.random() * 10) + 2} patlak/12 ay`, `MNF %${Math.floor(Math.random() * 15) + 10}`, `${Math.floor(Math.random() * 3) + 1} eski boru (30+ yaş)`],
+  risk_trend: (['improving', 'stable', 'worsening'] as const)[Math.floor(Math.random() * 3)],
   // Trend bilgileri
-  trend_vs_last_month: 'stable',
-  mnf_current: 18.2,
+  trend_vs_last_month: (['improving', 'stable', 'worsening'] as const)[Math.floor(Math.random() * 3)],
+  mnf_current: Math.round((Math.random() * 20 + 8) * 10) / 10,
   mnf_city_avg: 22.5,
 };
 
@@ -349,6 +403,69 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket }) => {
 
 interface NeighborhoodCardProps {
   metrics: NeighborhoodMetrics;
+  currentIssueType: IssueType;
+}
+
+// Benzer şikayet tipi (KVKK uyumlu - kişisel bilgi yok)
+interface SimilarComplaint {
+  id: string;
+  type: IssueType;
+  date: string;
+  status: TicketStatus;
+}
+
+// Mock benzer şikayetler üretici
+function generateSimilarComplaints(neighborhood: string, currentType: IssueType): SimilarComplaint[] {
+  const types: IssueType[] = ['su_kesintisi', 'dusuk_basinc', 'su_kalitesi', 'diger'];
+  const statuses: TicketStatus[] = ['alindi', 'atanmis', 'sahada', 'cozuluyor', 'kapandi'];
+  
+  const complaints: SimilarComplaint[] = [];
+  
+  // Kullanıcının şikayet tipinden daha fazla üret (önce görünsün)
+  const sameTypeCount = Math.floor(Math.random() * 4) + 2; // 2-5 arası aynı tip
+  for (let i = 0; i < sameTypeCount; i++) {
+    const daysAgo = Math.floor(Math.random() * 90);
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    
+    // Aynı tip şikayetler farklı durumlarda olabilir
+    complaints.push({
+      id: `SC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      type: currentType,
+      date: date.toISOString(),
+      status: statuses[Math.floor(Math.random() * statuses.length)]
+    });
+  }
+  
+  // Diğer tiplerden rastgele ekle
+  const otherTypes = types.filter(t => t !== currentType);
+  const otherCount = Math.floor(Math.random() * 6) + 2; // 2-7 arası diğer tipler
+  
+  for (let i = 0; i < otherCount; i++) {
+    const daysAgo = Math.floor(Math.random() * 90);
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    const randomType = otherTypes[Math.floor(Math.random() * otherTypes.length)];
+    
+    complaints.push({
+      id: `SC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      type: randomType,
+      date: date.toISOString(),
+      status: statuses[Math.floor(Math.random() * statuses.length)]
+    });
+  }
+  
+  return complaints.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+// Şikayet tipi renk
+function getIssueTypeColor(type: IssueType): string {
+  switch (type) {
+    case 'su_kesintisi': return '#DC2626';
+    case 'dusuk_basinc': return '#F59E0B';
+    case 'su_kalitesi': return '#8B5CF6';
+    case 'diger': return '#6B7280';
+  }
 }
 
 // Trend ikonu yardımcısı
@@ -361,9 +478,19 @@ const getTrendIcon = (trend?: TrendDirection): { icon: string; color: string } =
   }
 };
 
-const NeighborhoodCard: React.FC<NeighborhoodCardProps> = ({ metrics }) => {
+const NeighborhoodCard: React.FC<NeighborhoodCardProps> = ({ metrics, currentIssueType }) => {
+  const [showSimilarComplaints, setShowSimilarComplaints] = useState(false);
+  const [similarComplaints, setSimilarComplaints] = useState<SimilarComplaint[]>([]);
+  
   const riskInfo = getRiskBandInfo(metrics.risk_band_current);
   const perfInfo = getPerformanceInfo(metrics.performance_vs_city);
+  
+  // Benzer şikayetleri yükle - her tıklamada yeniden üret
+  const handleShowSimilar = () => {
+    const complaints = generateSimilarComplaints(metrics.neighborhood, currentIssueType);
+    setSimilarComplaints(complaints);
+    setShowSimilarComplaints(true);
+  };
   
   // Şehir kıyası hesaplama
   const outageVsCity = metrics.outage_count_30d - metrics.city_avg_outage_count_30d;
@@ -382,7 +509,141 @@ const NeighborhoodCard: React.FC<NeighborhoodCardProps> = ({ metrics }) => {
     return diff > 0 ? '#27ae60' : '#c0392b';
   };
   
+  // Şikayet tipine göre grupla
+  const complaintsByTypeRaw = similarComplaints.reduce((acc, c) => {
+    if (!acc[c.type]) acc[c.type] = [];
+    acc[c.type].push(c);
+    return acc;
+  }, {} as Record<IssueType, SimilarComplaint[]>);
+  
+  // Kullanıcının şikayet tipi en başta olsun
+  const sortedTypes = Object.keys(complaintsByTypeRaw).sort((a, b) => {
+    if (a === currentIssueType) return -1;
+    if (b === currentIssueType) return 1;
+    return (complaintsByTypeRaw[b as IssueType]?.length || 0) - (complaintsByTypeRaw[a as IssueType]?.length || 0);
+  }) as IssueType[];
+  
+  const complaintsByType = sortedTypes.reduce((acc, type) => {
+    acc[type] = complaintsByTypeRaw[type];
+    return acc;
+  }, {} as Record<IssueType, SimilarComplaint[]>);
+  
   return (
+    <>
+      {/* Benzer Şikayetler Modal */}
+      {showSimilarComplaints && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]"
+          onClick={() => setShowSimilarComplaints(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-slate-800 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">Benzer Şikayetler</h3>
+                  <p className="text-sm opacity-70">{metrics.neighborhood} • Son 90 Gün</p>
+                </div>
+                <button
+                  onClick={() => setShowSimilarComplaints(false)}
+                  className="text-white/70 hover:text-white text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            {/* KVKK Uyarısı */}
+            <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+              <p className="text-xs text-blue-700">
+                🔒 KVKK gereği kişisel bilgiler (isim, adres, şikayet detayı) gösterilmemektedir.
+              </p>
+            </div>
+            
+            {/* Özet */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">Toplam Benzer Şikayet</span>
+                <span className="text-2xl font-bold text-slate-800">{similarComplaints.length}</span>
+              </div>
+            </div>
+            
+            {/* Tipe Göre Gruplar */}
+            <div className="px-6 py-4 overflow-y-auto max-h-[40vh]">
+              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-3">Şikayet Tipine Göre</h4>
+              
+              {Object.entries(complaintsByType).map(([type, complaints]) => (
+                <div key={type} className="mb-4">
+                  <div 
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ backgroundColor: getIssueTypeColor(type as IssueType) + '15' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: getIssueTypeColor(type as IssueType) }}
+                      />
+                      <span 
+                        className="font-medium text-sm"
+                        style={{ color: getIssueTypeColor(type as IssueType) }}
+                      >
+                        {getIssueTypeLabel(type as IssueType)}
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-slate-800">{complaints.length}</span>
+                  </div>
+                  
+                  {/* Tarih Listesi */}
+                  <div className="mt-2 pl-5 space-y-1">
+                    {complaints.slice(0, 5).map((c) => {
+                      const statusInfo = getStatusInfo(c.status);
+                      return (
+                        <div key={c.id} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500">
+                            {new Date(c.date).toLocaleDateString('tr-TR', { 
+                              day: 'numeric', 
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </span>
+                          <span 
+                            className="px-2 py-0.5 rounded text-xs font-medium"
+                            style={{ 
+                              backgroundColor: statusInfo.color + '20',
+                              color: statusInfo.color
+                            }}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {complaints.length > 5 && (
+                      <p className="text-xs text-slate-400 italic">
+                        +{complaints.length - 5} daha...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <button
+                onClick={() => setShowSimilarComplaints(false)}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    
     <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
       {/* Header - Sade */}
       <div className="bg-slate-800 px-6 py-4 text-white">
@@ -404,13 +665,14 @@ const NeighborhoodCard: React.FC<NeighborhoodCardProps> = ({ metrics }) => {
             <p className="text-sm font-semibold text-gray-800">Bursa Ortalamasına Göre</p>
             <p className="text-xs text-gray-500">Kesinti sayısı ve süresi bazında</p>
           </div>
-          <div 
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold"
+          <button 
+            onClick={handleShowSimilar}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold cursor-pointer hover:opacity-80 transition"
             style={{ backgroundColor: perfInfo.color + '15', color: perfInfo.color }}
           >
             <span className="text-xl">{perfInfo.icon}</span>
             {perfInfo.label}
-          </div>
+          </button>
         </div>
       </div>
       
@@ -495,6 +757,7 @@ const NeighborhoodCard: React.FC<NeighborhoodCardProps> = ({ metrics }) => {
         />
       </div>
     </div>
+    </>
   );
 };
 
@@ -641,7 +904,7 @@ export const TicketPage: React.FC<TicketPageProps> = ({ ticketId }) => {
         <TicketCard ticket={data.ticket} />
         
         {/* Neighborhood Card */}
-        <NeighborhoodCard metrics={data.neighborhood} />
+        <NeighborhoodCard metrics={data.neighborhood} currentIssueType={data.ticket.issue_type} />
       </main>
       
       {/* Footer / Disclaimer */}

@@ -40,17 +40,24 @@ export interface Alert {
 
 export interface Complaint {
   id: string;
-  user_id: string;
-  user_name: string;
+  user_id?: string;
+  user_name?: string;
+  citizenId?: string;
+  citizenName?: string;
   district: string;
-  neighborhood: string;
+  neighborhood?: string;
+  address?: string;
   text: string;
   category: ComplaintCategory;
-  created_at: string;
-  status: 'OPEN' | 'RESOLVED';
+  created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status: 'OPEN' | 'RESOLVED' | 'BEKLEMEDE' | 'ISLEMDE' | 'COZULDU';
+  priority?: 'ACIL' | 'YUKSEK' | 'NORMAL' | 'DUSUK';
+  location?: { lat: number; lng: number };
   // Social features
-  likes: number;
-  likedBy: string[]; // User IDs
+  likes?: number;
+  likedBy?: string[]; // User IDs
   adminReply?: string;
 }
 

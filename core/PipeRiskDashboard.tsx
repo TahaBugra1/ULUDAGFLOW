@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Popup, ZoomControl } from 'react-leaflet';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, Polyline, Popup, ZoomControl, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Sentetik data - MVP için statik
@@ -27,6 +27,145 @@ const MOCK_PRIORITY_DATA = [
   { priority: 20, pipe_id: 'P-KES-041', dma_id: 'DMA-Kestel', district: 'Kestel', material: 'PVC', age: 15, risk_score: 43.3, lat_start: 40.2050, lng_start: 29.2080, lat_end: 40.2070, lng_end: 29.2110 },
 ];
 
+// Şikayet kategorileri ve renkleri
+const COMPLAINT_COLORS: Record<string, string> = {
+  'PATLAK': '#ef4444',
+  'BASINC_DUSUK': '#f97316',
+  'KALITE': '#8b5cf6',
+  'KESINTI': '#3b82f6',
+  'SIZINTI': '#06b6d4',
+  'DIGER': '#6b7280'
+};
+
+const COMPLAINT_LABELS: Record<string, string> = {
+  'PATLAK': 'Patlak',
+  'BASINC_DUSUK': 'Basınç Düşük',
+  'KALITE': 'Su Kalitesi',
+  'KESINTI': 'Kesinti',
+  'SIZINTI': 'Sızıntı',
+  'DIGER': 'Diğer'
+};
+
+// Borulara yakın şikayetler oluştur
+function generateComplaints() {
+  const complaints: Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    category: string;
+    priority: string;
+    text: string;
+    district: string;
+    citizenName: string;
+    createdAt: string;
+    pipeId: string;
+  }> = [];
+  
+  const categories = [
+    { cat: 'PATLAK', priority: 'ACIL', texts: [
+      'Beyler sokağın ortasında boru patlamış, her yer su içinde kaldı!',
+      'Acil yardım lazım, ana boru patladı su fışkırıyor resmen',
+      'Yolun ortasında havuz oluştu, arabalar geçemiyor artık',
+      'Boru patlamış galiba, bodrum katı su bastı bizim',
+      'Komşular toplanmış bakıyoruz su çıkıyor yerden, ne yapacağız?',
+      'Sabahtan beri su akıyor sokağa, israf resmen ya',
+      'Kapının önü göl oldu, çocukları okula nasıl göndereceğim?'
+    ]},
+    { cat: 'BASINC_DUSUK', priority: 'YUKSEK', texts: [
+      'Su damla damla geliyor, duş alamıyoruz artık',
+      'Üst kata su çıkmıyor, kombi de çalışmıyor bu basınçla',
+      '3. katta oturuyorum, musluktan hava geliyor su değil',
+      'Çamaşır makinesi dolmuyor, basınç yok hiç',
+      'Mutfakta bulaşık yıkayamıyorum, su gelmiyor düzgün',
+      'Sabah 6da kalkıp duş almaya çalışıyorum, o saatte bile basınç yok',
+      'Tüm mahalle aynı durumda, kimsenin evine su gitmiyor düzgün'
+    ]},
+    { cat: 'KALITE', priority: 'NORMAL', texts: [
+      'Su sarı sarı geliyor, içilecek gibi değil vallahi',
+      'Musluktan çamurlu su akıyor, çocuklara içiremiyorum',
+      'Suda garip bir koku var, banyo bile yapamıyoruz',
+      'Beyaz çamaşırlar sarardı bu sudan, ne yapacağız?',
+      'Su bulanık geliyor, dinlendiriyoruz sonra kullanıyoruz mecbur',
+      'Paslı su geliyor, boru mu eskidi acaba?',
+      'Tortu bırakıyor su, elektrikli süpürge gibi temizliyorum musluğu'
+    ]},
+    { cat: 'KESINTI', priority: 'YUKSEK', texts: [
+      '2 gündür su yok, ne zaman gelecek acaba?',
+      'Planlı kesinti dediler 4 saat, 12 saat oldu hala yok',
+      'Mahallemizde sabahtan beri su kesildi, haber de yok',
+      'İşe geç kaldım duş alamadım, su kesikti yine',
+      'Yaşlı annem evde tek, su yok ilaçlarını içemiyor',
+      'Bebek var evde, mama yapamıyoruz su olmayınca',
+      'Her hafta kesinti var, artık bıktık gerçekten'
+    ]},
+    { cat: 'SIZINTI', priority: 'NORMAL', texts: [
+      'Kaldırımın altından su sızıyor, görmüyor musunuz?',
+      'Vana kapağından su akıyor haftalardır, kimse bakmıyor',
+      'Bahçe duvarının dibinde ıslaklık var sürekli',
+      'Yol kenarında su birikintisi oluşuyor, kışın buz tutacak tehlikeli',
+      'Alt komşu şikayet ediyor, bizim borudan sızıntı varmış',
+      'Park yerinde su sızıntısı var, arabalar pas tutuyor',
+      'Apartman girişinde su birikti, kim ilgilenecek bununla?'
+    ]},
+  ];
+  
+  const names = ['Ahmet Yılmaz', 'Fatma Demir', 'Mehmet Kaya', 'Ayşe Çelik', 'Ali Öztürk', 'Zeynep Arslan', 'Mustafa Şahin', 'Elif Yıldız', 'Hasan Koç', 'Hatice Aydın', 'İbrahim Aksoy', 'Emine Özkan'];
+  
+  // Yüksek riskli borulara daha fazla şikayet
+  MOCK_PRIORITY_DATA.forEach((pipe, idx) => {
+    // Risk skoru yüksekse daha fazla şikayet
+    const complaintCount = pipe.risk_score >= 80 ? 4 : pipe.risk_score >= 60 ? 3 : pipe.risk_score >= 40 ? 2 : 1;
+    
+    for (let i = 0; i < complaintCount; i++) {
+      // Borunun ortasına yakın rastgele konum
+      const midLat = (pipe.lat_start + pipe.lat_end) / 2 + (Math.random() - 0.5) * 0.004;
+      const midLng = (pipe.lng_start + pipe.lng_end) / 2 + (Math.random() - 0.5) * 0.004;
+      
+      // Yüksek riskli borularda ciddi kategoriler
+      let catInfo;
+      if (pipe.risk_score >= 80) {
+        catInfo = categories[Math.floor(Math.random() * 2)]; // PATLAK veya BASINC
+      } else if (pipe.risk_score >= 60) {
+        catInfo = categories[Math.floor(Math.random() * 3)];
+      } else {
+        catInfo = categories[Math.floor(Math.random() * categories.length)];
+      }
+      
+      complaints.push({
+        id: `C-${pipe.pipe_id}-${i}`,
+        lat: midLat,
+        lng: midLng,
+        category: catInfo.cat,
+        priority: catInfo.priority,
+        text: catInfo.texts[Math.floor(Math.random() * catInfo.texts.length)],
+        district: pipe.district,
+        citizenName: names[Math.floor(Math.random() * names.length)],
+        createdAt: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString(),
+        pipeId: pipe.pipe_id
+      });
+    }
+  });
+  
+  // Daha fazla rastgele konum (merkez etrafında)
+  for (let i = 0; i < 25; i++) {
+    const catInfo = categories[Math.floor(Math.random() * categories.length)];
+    complaints.push({
+      id: `C-RANDOM-${i}`,
+      lat: 40.1885 + (Math.random() - 0.5) * 0.2,
+      lng: 29.0610 + (Math.random() - 0.5) * 0.4,
+      category: catInfo.cat,
+      priority: catInfo.priority,
+      text: catInfo.texts[Math.floor(Math.random() * catInfo.texts.length)],
+      district: ['Nilüfer', 'Osmangazi', 'Yıldırım', 'Gemlik', 'İnegöl', 'Mudanya'][Math.floor(Math.random() * 6)],
+      citizenName: names[Math.floor(Math.random() * names.length)],
+      createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+      pipeId: ''
+    });
+  }
+  
+  return complaints;
+}
+
 const METRICS = {
   avg_mnf_lps: 8.42,
   estimated_ili: 3.2,
@@ -53,6 +192,11 @@ function getRiskLevel(score: number): string {
 export const PipeRiskDashboard: React.FC = () => {
   const [selectedPipe, setSelectedPipe] = useState<typeof MOCK_PRIORITY_DATA[0] | null>(null);
   const [view, setView] = useState<'table' | 'map'>('table');
+  const [showComplaints, setShowComplaints] = useState(true);
+  const [selectedComplaint, setSelectedComplaint] = useState<ReturnType<typeof generateComplaints>[0] | null>(null);
+  
+  // Şikayetleri oluştur (memoized)
+  const complaints = useMemo(() => generateComplaints(), []);
 
   // Bursa merkez
   const center: [number, number] = [40.1885, 29.0610];
@@ -80,23 +224,51 @@ export const PipeRiskDashboard: React.FC = () => {
             Boru Risk Önceliklendirme
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#718096' }}>
-            30 günlük patlak riski tahmin modülü
+            30 günlük patlak riski tahmin modülü • {complaints.length} Şikayet
           </p>
         </div>
         
         {/* Metrikler */}
         <div style={{ display: 'flex', gap: '24px' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#2c5282' }}>{METRICS.avg_mnf_lps}</div>
-            <div style={{ fontSize: '11px', color: '#718096' }}>MNF (L/s)</div>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '8px 16px', 
+            backgroundColor: 'rgba(59, 130, 246, 0.15)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(59, 130, 246, 0.4)'
+          }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#3b82f6', textShadow: '0 0 10px rgba(59, 130, 246, 0.5)' }}>{METRICS.avg_mnf_lps}</div>
+            <div style={{ fontSize: '11px', color: '#93c5fd', fontWeight: 500 }}>MNF (L/s)</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#c27803' }}>{METRICS.estimated_ili}</div>
-            <div style={{ fontSize: '11px', color: '#718096' }}>ILI</div>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '8px 16px', 
+            backgroundColor: 'rgba(245, 158, 11, 0.15)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(245, 158, 11, 0.4)'
+          }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#fbbf24', textShadow: '0 0 10px rgba(251, 191, 36, 0.5)' }}>{METRICS.estimated_ili}</div>
+            <div style={{ fontSize: '11px', color: '#fcd34d', fontWeight: 500 }}>ILI</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#c53030' }}>{METRICS.monthly_failures}</div>
-            <div style={{ fontSize: '11px', color: '#718096' }}>Arıza/Ay</div>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '8px 16px', 
+            backgroundColor: 'rgba(239, 68, 68, 0.15)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(239, 68, 68, 0.4)'
+          }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#f87171', textShadow: '0 0 10px rgba(248, 113, 113, 0.5)' }}>{METRICS.monthly_failures}</div>
+            <div style={{ fontSize: '11px', color: '#fca5a5', fontWeight: 500 }}>Arıza/Ay</div>
+          </div>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '8px 16px', 
+            backgroundColor: 'rgba(251, 146, 60, 0.15)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(251, 146, 60, 0.4)'
+          }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#fb923c', textShadow: '0 0 10px rgba(251, 146, 60, 0.5)' }}>{complaints.length}</div>
+            <div style={{ fontSize: '11px', color: '#fdba74', fontWeight: 500 }}>Şikayet</div>
           </div>
         </div>
 
@@ -243,6 +415,35 @@ export const PipeRiskDashboard: React.FC = () => {
         ) : (
           /* Harita Görünümü */
           <div style={{ flex: 1, position: 'relative' }}>
+            {/* Harita Kontrolleri - Sağ Üst */}
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              zIndex: 1000,
+              display: 'flex',
+              gap: '8px'
+            }}>
+              <button
+                onClick={() => setShowComplaints(!showComplaints)}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: showComplaints ? '#f97316' : 'rgba(26, 35, 50, 0.95)',
+                  border: showComplaints ? '2px solid #fb923c' : '2px solid rgba(251, 146, 60, 0.5)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  boxShadow: showComplaints ? '0 0 15px rgba(249, 115, 22, 0.5)' : '0 2px 8px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                📍 Şikayetler ({complaints.length})
+              </button>
+            </div>
             <MapContainer
               center={center}
               zoom={11}
@@ -252,7 +453,7 @@ export const PipeRiskDashboard: React.FC = () => {
               <ZoomControl position="bottomright" />
               <TileLayer
                 attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
               />
               
               {/* Risk borularını çiz */}
@@ -284,6 +485,59 @@ export const PipeRiskDashboard: React.FC = () => {
                   </Popup>
                 </Polyline>
               ))}
+
+              {/* Şikayet Noktaları */}
+              {showComplaints && complaints.map((complaint) => (
+                <CircleMarker
+                  key={complaint.id}
+                  center={[complaint.lat, complaint.lng]}
+                  radius={complaint.priority === 'ACIL' ? 10 : 7}
+                  pathOptions={{
+                    color: COMPLAINT_COLORS[complaint.category] || '#6b7280',
+                    fillColor: COMPLAINT_COLORS[complaint.category] || '#6b7280',
+                    fillOpacity: 0.8,
+                    weight: 2
+                  }}
+                  eventHandlers={{
+                    click: () => setSelectedComplaint(complaint)
+                  }}
+                >
+                  <Popup>
+                    <div style={{ fontSize: '13px', minWidth: '180px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ 
+                          width: '10px', 
+                          height: '10px', 
+                          borderRadius: '50%', 
+                          backgroundColor: COMPLAINT_COLORS[complaint.category] 
+                        }}></span>
+                        <strong>{COMPLAINT_LABELS[complaint.category]}</strong>
+                        {complaint.priority === 'ACIL' && (
+                          <span style={{ 
+                            backgroundColor: '#dc2626', 
+                            color: 'white', 
+                            padding: '2px 6px', 
+                            borderRadius: '4px',
+                            fontSize: '10px'
+                          }}>ACİL</span>
+                        )}
+                      </div>
+                      <div style={{ color: '#374151', marginBottom: '6px' }}>{complaint.text}</div>
+                      <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                        📍 {complaint.district}<br/>
+                        👤 {complaint.citizenName}<br/>
+                        📅 {new Date(complaint.createdAt).toLocaleDateString('tr-TR')}
+                        {complaint.pipeId && <><br/>🔗 {complaint.pipeId}</>}
+                      </div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
             </MapContainer>
 
             {/* Harita Lejant */}
@@ -291,31 +545,64 @@ export const PipeRiskDashboard: React.FC = () => {
               position: 'absolute',
               top: '16px',
               left: '16px',
-              backgroundColor: '#2d3748',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
               padding: '12px',
               borderRadius: '6px',
               zIndex: 1000,
-              fontSize: '12px'
+              fontSize: '12px',
+              color: '#1a202c',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
             }}>
-              <div style={{ fontWeight: 600, marginBottom: '8px' }}>Risk Seviyeleri</div>
+              <div style={{ fontWeight: 600, marginBottom: '8px', color: '#1a202c' }}>Risk Seviyeleri</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ width: '20px', height: '4px', backgroundColor: '#c53030', borderRadius: '2px' }}></span>
-                  Kritik (80+)
+                  <span style={{ color: '#374151' }}>Kritik (80+)</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ width: '20px', height: '4px', backgroundColor: '#c27803', borderRadius: '2px' }}></span>
-                  Yüksek (60-79)
+                  <span style={{ color: '#374151' }}>Yüksek (60-79)</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ width: '20px', height: '4px', backgroundColor: '#b7791f', borderRadius: '2px' }}></span>
-                  Orta (40-59)
+                  <span style={{ color: '#374151' }}>Orta (40-59)</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ width: '20px', height: '4px', backgroundColor: '#276749', borderRadius: '2px' }}></span>
-                  Düşük (&lt;40)
+                  <span style={{ color: '#374151' }}>Düşük (&lt;40)</span>
                 </div>
               </div>
+
+              {/* Şikayet Lejandı */}
+              {showComplaints && (
+                <>
+                  <div style={{ fontWeight: 600, marginTop: '12px', marginBottom: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', color: '#1a202c' }}>
+                    Şikayet Türleri
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#ef4444', borderRadius: '50%' }}></span>
+                      <span style={{ color: '#374151' }}>Patlak</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#f97316', borderRadius: '50%' }}></span>
+                      <span style={{ color: '#374151' }}>Basınç Düşük</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#8b5cf6', borderRadius: '50%' }}></span>
+                      <span style={{ color: '#374151' }}>Su Kalitesi</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#3b82f6', borderRadius: '50%' }}></span>
+                      <span style={{ color: '#374151' }}>Kesinti</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#06b6d4', borderRadius: '50%' }}></span>
+                      <span style={{ color: '#374151' }}>Sızıntı</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
