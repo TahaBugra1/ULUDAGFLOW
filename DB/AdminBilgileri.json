@@ -1,0 +1,139 @@
+[{
+    "id": "admin-1",
+    "name": "Buski Admin",
+    "email": "admin@buski.gov.tr",
+    "role": "WATER_OPS",
+    "department": "Merkezi Operasyon Birimi",
+    "phone": "02242700000",
+    "permissions": ["ALL"],
+    "createdAt": "2023-01-01T00:00:00Z"
+  },
+  {
+    "id": "A001",
+    "name": "Murat Özkan",
+    "email": "murat.ozkan@buski.gov.tr",
+    "role": "SUPER_ADMIN",
+    "department": "Genel Müdürlük",
+    "phone": "02242700001",
+    "permissions": ["ALL"],
+    "createdAt": "2023-01-01T00:00:00Z"
+  },
+  {
+    "id": "A002",
+    "name": "Aylin Yılmaz",
+    "email": "aylin.yilmaz@buski.gov.tr",
+    "role": "BOLGE_MUDURU",
+    "department": "Nilüfer Bölge Müdürlüğü",
+    "districts": ["Nilüfer"],
+    "phone": "02242700101",
+    "permissions": ["VIEW_COMPLAINTS", "PROCESS_COMPLAINTS", "ASSIGN_TEAMS", "VIEW_REPORTS"],
+    "createdAt": "2023-03-15T00:00:00Z"
+  },
+  {
+    "id": "A003",
+    "name": "Kemal Demir",
+    "email": "kemal.demir@buski.gov.tr",
+    "role": "BOLGE_MUDURU",
+    "department": "Osmangazi Bölge Müdürlüğü",
+    "districts": ["Osmangazi"],
+    "phone": "02242700102",
+    "permissions": ["VIEW_COMPLAINTS", "PROCESS_COMPLAINTS", "ASSIGN_TEAMS", "VIEW_REPORTS"],
+    "createdAt": "2023-03-15T00:00:00Z"
+  },
+  {
+    "id": "A004",
+    "name": "Selin Arslan",
+    "email": "selin.arslan@buski.gov.tr",
+    "role": "BOLGE_MUDURU",
+    "department": "Yıldırım Bölge Müdürlüğü",
+    "districts": ["Yıldırım"],
+    "phone": "02242700103",
+    "permissions": ["VIEW_COMPLAINTS", "PROCESS_COMPLAINTS", "ASSIGN_TEAMS", "VIEW_REPORTS"],
+    "createdAt": "2023-03-15T00:00:00Z"
+  },
+  {
+    "id": "A005",
+    "name": "Hakan Kaya",
+    "email": "hakan.kaya@buski.gov.tr",
+    "role": "BOLGE_MUDURU",
+    "department": "Güney İlçeler Bölge Müdürlüğü",
+    "districts": ["Gemlik", "Mudanya", "Orhangazi", "İznik"],
+    "phone": "02242700104",
+    "permissions": ["VIEW_COMPLAINTS", "PROCESS_COMPLAINTS", "ASSIGN_TEAMS", "VIEW_REPORTS"],
+    "createdAt": "2023-06-01T00:00:00Z"
+  },
+  {
+    "id": "A006",
+    "name": "Zehra Çetin",
+    "email": "zehra.cetin@buski.gov.tr",
+    "role": "BOLGE_MUDURU",
+    "department": "Doğu İlçeler Bölge Müdürlüğü",
+    "districts": ["İnegöl", "Kestel", "Gürsu"],
+    "phone": "02242700105",
+    "permissions": ["VIEW_COMPLAINTS", "PROCESS_COMPLAINTS", "ASSIGN_TEAMS", "VIEW_REPORTS"],
+    "createdAt": "2023-06-01T00:00:00Z"
+  },
+  {
+    "id": "A007",
+    "name": "Erhan Polat",
+    "email": "erhan.polat@buski.gov.tr",
+    "role": "TEKNIK_EKIP_SEFI",
+    "department": "Arıza Onarım Ekibi - Nilüfer",
+    "districts": ["Nilüfer"],
+    "phone": "05321111111",
+    "permissions": ["VIEW_COMPLAINTS", "UPDATE_STATUS", "ADD_NOTES"],
+    "createdAt": "2023-09-01T00:00:00Z"
+  },
+  {
+    "id": "A008",
+    "name": "Canan Öztürk",
+    "email": "canan.ozturk@buski.gov.tr",
+    "role": "TEKNIK_EKIP_SEFI",
+    "department": "Arıza Onarım Ekibi - Osmangazi",
+    "districts": ["Osmangazi"],
+    "phone": "05322222222",
+    "permissions": ["VIEW_COMPLAINTS", "UPDATE_STATUS", "ADD_NOTES"],
+    "createdAt": "2023-09-01T00:00:00Z"
+  },
+  {
+    "id": "A009",
+    "name": "Barış Yıldırım",
+    "email": "baris.yildirim@buski.gov.tr",
+    "role": "TEKNIK_EKIP_SEFI",
+    "department": "Arıza Onarım Ekibi - Yıldırım",
+    "districts": ["Yıldırım"],
+    "phone": "05323333333",
+    "permissions": ["VIEW_COMPLAINTS", "UPDATE_STATUS", "ADD_NOTES"],
+    "createdAt": "2023-09-01T00:00:00Z"
+  },
+  {
+    "id": "A010",
+    "name": "Deniz Akar",
+    "email": "deniz.akar@buski.gov.tr",
+    "role": "MUSTERI_HIZMETLERI",
+    "department": "Çağrı Merkezi",
+    "phone": "02242700200",
+    "permissions": ["VIEW_COMPLAINTS", "CREATE_COMPLAINTS", "ADD_NOTES"],
+    "createdAt": "2024-01-15T00:00:00Z"
+  },
+  {
+    "id": "A011",
+    "name": "Gökhan Şahin",
+    "email": "gokhan.sahin@buski.gov.tr",
+    "role": "SCADA_OPERATOR",
+    "department": "SCADA Kontrol Merkezi",
+    "phone": "02242700300",
+    "permissions": ["VIEW_SENSOR_DATA", "VIEW_NETWORK_STATUS", "CREATE_ALERTS"],
+    "createdAt": "2024-03-01T00:00:00Z"
+  },
+  {
+    "id": "A012",
+    "name": "Fatih Korkmaz",
+    "email": "fatih.korkmaz@buski.gov.tr",
+    "role": "ANALIZ_UZMANI",
+    "department": "Veri Analiz Birimi",
+    "phone": "02242700400",
+    "permissions": ["VIEW_ALL_DATA", "GENERATE_REPORTS", "VIEW_ANALYTICS"],
+    "createdAt": "2024-06-01T00:00:00Z"
+  }
+]

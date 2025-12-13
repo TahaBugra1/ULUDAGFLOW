@@ -1,0 +1,309 @@
+/* ====================================
+   ULUDAGFLOW - BUSKİ Dijital Altyapı
+   Kurumsal Su Yönetim Arayüzü
+   ==================================== */
+
+/* === CSS Variables - Kurumsal Palet === */
+:root {
+  /* Ana Renkler - Koyu Lacivert/Kömür */
+  --primary-900: #0c1929;  /* En koyu - arka plan */
+  --primary-800: #132337;
+  --primary-700: #1a2f4a;
+  --primary-600: #243b5c;
+  --primary-500: #2e4a6e;
+  
+  /* Vurgu - Su Mavisi (tek ton) */
+  --water-500: #2c7da0;
+  --water-600: #1e6587;
+  --water-400: #468faf;
+  
+  /* Uyarı/Risk - Turuncu/Kırmızı */
+  --alert-500: #d35400;
+  --alert-600: #a04000;
+  --danger-500: #c0392b;
+  --danger-600: #962d22;
+  
+  /* Risk Seviyeleri - Mat Tonlar */
+  --risk-low: #27ae60;
+  --risk-medium: #d4a520;
+  --risk-high: #c0392b;
+  
+  /* Nötr Tonlar */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  
+  /* Shadows - Daha sade */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  
+  /* Border Radius - Küçültüldü */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+/* === Base Styles === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--slate-100);
+  min-height: 100vh;
+  color: var(--slate-800);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === Animations - Sadeleştirildi === */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+.animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
+.animate-scale-in { animation: fadeIn 0.2s ease-out forwards; }
+.animate-spin { animation: spin 1s linear infinite; }
+
+/* === Scrollbar - Sade === */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--slate-200); }
+::-webkit-scrollbar-thumb { background: var(--slate-400); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--slate-500); }
+
+/* === Selection === */
+::selection { background-color: var(--water-400); color: white; }
+
+/* === Card Styles - Sade === */
+.card {
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--slate-200);
+}
+
+/* === Status Indicators === */
+.status-dot { 
+  width: 8px; 
+  height: 8px; 
+  border-radius: 50%; 
+  display: inline-block; 
+}
+.status-dot.online { background: var(--risk-low); }
+.status-dot.warning { background: var(--risk-medium); }
+.status-dot.danger { background: var(--risk-high); }
+
+/* === Bursa Kurumsal Layout === */
+.bursa-hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: var(--primary-900);
+}
+
+.mobile-shell {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.bursa-card {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.bursa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--slate-100);
+  color: var(--slate-600);
+  border: 1px solid var(--slate-200);
+}
+
+.citizen-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--slate-100);
+}
+
+.citizen-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 16px 20px;
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.citizen-header > div {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.citizen-content {
+  flex: 1;
+  padding: 20px;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.bursa-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--slate-500);
+  margin-bottom: 12px;
+}
+
+.bursa-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 100%);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 24px 16px;
+  background: white;
+  border-top: 1px solid var(--slate-200);
+  z-index: 40;
+}
+
+.bursa-bottom-nav button {
+  background: none;
+  border: none;
+  color: var(--slate-500);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.bursa-bottom-nav button.active {
+  color: var(--water-600);
+}
+
+.bursa-bottom-nav svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--slate-100);
+}
+
+.admin-shell header {
+  background: white;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.admin-shell main {
+  flex: 1;
+  padding-bottom: 60px;
+}
+
+/* === Kurumsal Üst Bar === */
+.buski-topbar {
+  background: var(--primary-900);
+  color: white;
+  padding: 8px 16px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buski-topbar .logo-text {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* === Risk Kartları - Mat Renkler === */
+.risk-badge-high {
+  background: var(--risk-high);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.risk-badge-medium {
+  background: var(--risk-medium);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.risk-badge-low {
+  background: var(--risk-low);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* === Responsive === */
+@media (min-width: 768px) {
+  .bursa-card {
+    border-radius: var(--radius-lg);
+  }
+
+  .bursa-bottom-nav {
+    left: auto;
+    transform: none;
+    right: 24px;
+    bottom: 24px;
+    width: auto;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    gap: 16px;
+  }
+}

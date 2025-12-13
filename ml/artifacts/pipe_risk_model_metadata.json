@@ -1,0 +1,106 @@
+{
+  "model_name": "Pipe Risk Prediction Model",
+  "model_type": "VotingRegressor (RF + GB)",
+  "version": "1.0.0",
+  "created_at": "2025-12-13T11:00:50.958420",
+  "feature_columns": [
+    "diameter",
+    "length",
+    "slope",
+    "geom_length",
+    "centroid_x",
+    "centroid_y",
+    "material_risk",
+    "diameter_risk",
+    "slope_risk",
+    "age_risk",
+    "length_risk",
+    "status_risk",
+    "type_risk",
+    "material_encoded",
+    "type_encoded",
+    "subtype_encoded"
+  ],
+  "target": "risk_score (0-100)",
+  "metrics": {
+    "rmse": 5.16607505121891,
+    "mae": 4.1522413309046415,
+    "r2": 0.37125662796919656,
+    "train_size": 4335,
+    "test_size": 1084,
+    "cv_r2_mean": -0.2974415668959106,
+    "cv_r2_std": 0.8808374895486867,
+    "feature_importance": [
+      {
+        "feature": "slope",
+        "importance": 0.26242539488301875
+      },
+      {
+        "feature": "age_risk",
+        "importance": 0.20314213144938392
+      },
+      {
+        "feature": "centroid_y",
+        "importance": 0.1415530788221146
+      },
+      {
+        "feature": "centroid_x",
+        "importance": 0.1365110290193808
+      },
+      {
+        "feature": "geom_length",
+        "importance": 0.08686965600741303
+      },
+      {
+        "feature": "length",
+        "importance": 0.08391964243444551
+      },
+      {
+        "feature": "material_risk",
+        "importance": 0.03527058060949807
+      },
+      {
+        "feature": "diameter",
+        "importance": 0.02478410558020688
+      },
+      {
+        "feature": "diameter_risk",
+        "importance": 0.008341828910876713
+      },
+      {
+        "feature": "slope_risk",
+        "importance": 0.0061214582971952656
+      },
+      {
+        "feature": "material_encoded",
+        "importance": 0.005758006895746286
+      },
+      {
+        "feature": "subtype_encoded",
+        "importance": 0.0035940562582591705
+      },
+      {
+        "feature": "length_risk",
+        "importance": 0.0016770033295570286
+      },
+      {
+        "feature": "status_risk",
+        "importance": 3.202750290394579e-05
+      },
+      {
+        "feature": "type_risk",
+        "importance": 0.0
+      },
+      {
+        "feature": "type_encoded",
+        "importance": 0.0
+      }
+    ]
+  },
+  "data_sources": [
+    "balkan_icmesuyu_hat.shp",
+    "balkan_atiksu_boru.shp",
+    "balkan_yagmursuyu_ana_hat.shp"
+  ],
+  "training_samples": 5419
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "feature": "pipe_age_years",
+    "weight": 0.25
+  },
+  {
+    "feature": "material_encoded",
+    "weight": 0.2
+  },
+  {
+    "feature": "failure_count_last_12m",
+    "weight": 0.25
+  },
+  {
+    "feature": "time_since_last_failure_days",
+    "weight": -0.1
+  },
+  {
+    "feature": "dma_mnf_30d_avg",
+    "weight": 0.1
+  },
+  {
+    "feature": "dma_pressure_30d_std",
+    "weight": 0.1
+  }
+]

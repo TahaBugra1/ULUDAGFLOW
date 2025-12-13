@@ -1,0 +1,8 @@
+{
+  "auc_roc": 0.35,
+  "recall_at_5pct": 0.5,
+  "precision_at_5pct": 0.2,
+  "top_n_analyzed": 5,
+  "total_positives": 2,
+  "captured_positives": 1
+}

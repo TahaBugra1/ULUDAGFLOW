@@ -1,0 +1,5 @@
+{
+  "name": "ULUDAGFLOW",
+  "description": "Smart water management system for Bursa. Features a citizen mobile web-app for alerts/complaints and an admin dashboard for city officials.",
+  "requestFramePermissions": []
+}
